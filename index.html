@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>yt-dlp Web</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* palette (design.md) */
+  --color-primary: #ED1C24;          /* Vermelho Performance */
+  --color-primary-hover: #D9141B;    /* ~8% darker */
+  --color-primary-soft: rgba(237, 28, 36, .12);
+  --color-accent: #00BFFF;           /* Azul Elétrico */
+  --color-accent-soft: rgba(0, 191, 255, .10);
+  --color-success: #4ADE80;          /* instead of design.md's #00FF00 */
+  --color-success-hover: #3BC46E;
+  --color-success-soft: rgba(74, 222, 128, .10);
+  --color-white: #FFFFFF;            /* Branco */
+  --color-silver: #C0C0C0;           /* Prata */
+  --color-light-grey: #CCCCCC;       /* Cinza Claro */
+  --color-charcoal: #333333;         /* Cinza Escuro */
+
+  /* surfaces: off-black, never pure #000 */
+  --surface-page: #0B0C0E;
+  --surface-card: #141518;
+  --surface-raised: #1B1D21;
+  --surface-input: #0F1012;
+  --surface-terminal: #08090A;
+  --surface-red: #160A0B;
+  --border-red: #3A1A1C;
+  --border: #2A2C31;
+  --border-strong: #3A3D44;
+
+  --text-primary: #F2F3F5;
+  --text-secondary: var(--color-light-grey);
+  --text-muted: #8A8F98;
+
+  --font-sans: Roboto, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  --fs-hero: clamp(1.75rem, 4vw, 2.25rem);
+  --fs-h2: 1.5rem;
+  --fs-h3: 1.0625rem;
+  --fs-body: 1rem;
+  --fs-small: 0.875rem;
+  --fs-xs: 0.75rem;
+  --fs-2xs: 0.6875rem;
+  --lh-body: 1.6;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --container: 1280px;
+  --gutter: 1.5rem;
+
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-pill: 999px;
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, .35);
+  --shadow-lift: 0 6px 18px rgba(0, 0, 0, .45);
+  --glow-accent: 0 0 0 1px rgba(0, 191, 255, .35), 0 0 18px rgba(0, 191, 255, .14);
+  --focus-ring: 0 0 0 2px var(--surface-page), 0 0 0 4px var(--color-accent);
+
+  --ease-out: cubic-bezier(.22, .61, .36, 1);
+  --dur-fast: 200ms;
+  --dur-base: 300ms;
+  --dur-enter: 420ms;
+
+  --z-base: 0;
+  --z-sticky: 100;
+  --z-overlay: 200;
+  --z-modal: 300;
+  --z-toast: 500;
+
+  /* old names, JS writes var(--green) / var(--muted) inline */
+  --line: var(--border);
+  --text: var(--text-primary);
+  --muted: var(--text-muted);
+  --cyan: var(--color-accent);
+  --green: var(--color-success);
+  --red: var(--color-primary);
+  --shadow: var(--shadow-card);
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background-color: var(--surface-page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  min-height: 100dvh;
+  padding: var(--space-6) var(--gutter);
+  background-image:
+    radial-gradient(ellipse 60% 40% at 15% -5%, rgba(237, 28, 36, .10), transparent 70%),
+    radial-gradient(ellipse 50% 35% at 100% 0%, rgba(0, 191, 255, .06), transparent 70%),
+    linear-gradient(rgba(255, 255, 255, .022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .022) 1px, transparent 1px);
+  background-size: auto, auto, 32px 32px, 32px 32px;
+  background-repeat: no-repeat, no-repeat, repeat, repeat;
+}
+.wrap { width: min(var(--container), 100%); margin: auto; }
+::selection { background: rgba(0, 191, 255, .3); }
+
+.header {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--space-5);
+  margin-bottom: var(--space-6); padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+.header-side { display: flex; align-items: center; gap: var(--space-3); }
+.brand { font-size: var(--fs-hero); font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+.brand span { color: var(--color-primary); }
+.sub { color: var(--text-muted); font-size: var(--fs-small); margin-top: var(--space-1); }
+.status {
+  font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 500;
+  color: var(--text-muted); border: 1px solid var(--border); background: var(--surface-card);
+  padding: 6px 12px; border-radius: var(--radius-pill);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.footer {
+  text-align: center; color: var(--text-muted); font-family: var(--font-mono);
+  font-size: var(--fs-2xs); letter-spacing: .08em; text-transform: uppercase;
+  margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--border);
+}
+
+.card {
+  position: relative;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-card);
+  margin-bottom: var(--space-4);
+}
+/* red accent on top-level cards */
+.wrap > .card::before,
+#app > .card::before {
+  content: ""; position: absolute; top: -1px; left: var(--space-6);
+  width: 40px; height: 2px; border-radius: 0 0 2px 2px;
+  background: var(--color-primary);
+  box-shadow: 0 0 10px rgba(237, 28, 36, .55);
+}
+/* !important: these boxes have an inline background */
+.card .card {
+  box-shadow: none;
+  background: var(--surface-red) !important;
+  border-color: var(--border-red);
+  border-left: 2px solid var(--color-primary);
+}
+.login-card { max-width: 520px; margin-left: auto; margin-right: auto; }
+.login-error { color: var(--color-primary); }
+.section-title {
+  font-size: var(--fs-h3); font-weight: 700; letter-spacing: -.01em;
+  margin-bottom: var(--space-4); color: var(--text-primary);
+}
+.row { display: grid; grid-template-columns: 1fr auto; gap: var(--space-3); }
+.row3 { grid-template-columns: 1fr auto auto; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-5); }
+.field { min-width: 0; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-4); }
+.options { display: none; }
+
+/* only static cards animate, not JS-built ones */
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+#loginView,
+#app > .card { animation: card-enter var(--dur-enter) var(--ease-out) both; }
+#app > .card:nth-child(2) { animation-delay: 80ms; }
+#app > .card:nth-child(3) { animation-delay: 160ms; }
+#app > .card:nth-child(4) { animation-delay: 240ms; }
+#app > .card:nth-child(5) { animation-delay: 320ms; }
+
+.label {
+  display: block; color: var(--text-secondary);
+  font-size: var(--fs-small); font-weight: 500; line-height: 1.3;
+  text-transform: uppercase; letter-spacing: .06em;
+  margin: 0 0 var(--space-2);
+}
+.hint { font-size: var(--fs-xs); color: var(--text-muted); line-height: 1.55; margin-top: var(--space-2); max-width: 72ch; }
+.input, .select, .textarea {
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--fs-small);
+  border-radius: var(--radius);
+  padding: 11px 13px;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.input::placeholder, .textarea::placeholder { color: #5E636C; }
+.input:hover, .select:hover, .textarea:hover { border-color: #4A4E57; }
+.input:focus, .select:focus, .textarea:focus,
+.input:focus-visible, .select:focus-visible, .textarea:focus-visible {
+  border-color: var(--color-accent); box-shadow: var(--focus-ring);
+}
+.select:disabled { opacity: .5; cursor: not-allowed; }
+.select option { background: var(--surface-raised); color: var(--text-primary); }
+.textarea { min-height: 120px; resize: vertical; font-family: var(--font-mono); font-size: var(--fs-xs); line-height: 1.5; }
+.check {
+  display: flex; align-items: center; gap: var(--space-3);
+  font-size: var(--fs-small); font-weight: 600; letter-spacing: .04em; cursor: pointer;
+}
+.check input { width: 18px; height: 18px; accent-color: var(--color-accent); }
+.cookie-note { margin-top: var(--space-2); color: var(--text-muted); font-size: var(--fs-xs); }
+.pill {
+  display: inline-block; padding: 2px 8px; border-radius: var(--radius-pill);
+  background: var(--surface-raised); border: 1px solid var(--border-strong);
+  color: var(--text-secondary); font-family: var(--font-mono); font-size: var(--fs-2xs);
+}
+
+.url-box { position: relative; min-width: 0; }
+.url-box .input { padding-right: 42px; }
+.url-clear {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  width: 28px; height: 28px; display: grid; place-items: center;
+  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted);
+  font-size: 20px; line-height: 1; cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+.url-clear:hover { color: var(--text-primary); background: var(--surface-raised); }
+.url-clear:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.url-clear[hidden] { display: none; }
+
+.btn {
+  border: 1.5px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-sans); font-size: var(--fs-small); font-weight: 600; letter-spacing: .04em;
+  border-radius: var(--radius);
+  padding: 11px 18px;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
+}
+.btn:hover { background: var(--surface-raised); border-color: #50545D; transform: translateY(-1px); box-shadow: var(--shadow-lift); }
+.btn:active { transform: translateY(1px); box-shadow: none; }
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.btn.primary { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-white); }
+.btn.primary:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
+/* names are from the old theme: .purple is a blue outline now, .green a muted green */
+.btn.green { background: var(--color-success); border-color: var(--color-success); color: #0B1A10; }
+.btn.green:hover { background: var(--color-success-hover); border-color: var(--color-success-hover); }
+.btn.purple { border-color: rgba(0, 191, 255, .55); color: var(--color-accent); }
+.btn.purple:hover { background: var(--color-accent-soft); border-color: var(--color-accent); }
+.btn.red { border-color: rgba(237, 28, 36, .7); color: #FF6B70; }
+.btn.red:hover { background: var(--color-primary-soft); border-color: var(--color-primary); }
+
+.btn:disabled, .btn:disabled:hover {
+  opacity: .4; cursor: not-allowed; transform: none; box-shadow: none;
+}
+.btn.primary:disabled:hover { background: var(--color-primary); }
+.btn.green:disabled:hover { background: var(--color-success); }
+.btn:not(.primary):not(.green):disabled:hover { background: transparent; }
+
+.mini-btn {
+  border: 1.5px solid var(--border-strong); background: transparent; color: var(--text-secondary);
+  border-radius: var(--radius-sm); padding: 6px 10px;
+  font-family: var(--font-sans); font-size: var(--fs-2xs); font-weight: 600; letter-spacing: .06em;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out);
+}
+.mini-btn:hover { border-color: var(--color-accent); color: var(--text-primary); background: var(--color-accent-soft); }
+.mini-btn:active { transform: translateY(1px); }
+.mini-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.mini-btn:disabled { opacity: .4; cursor: not-allowed; background: transparent; border-color: var(--border-strong); color: var(--text-secondary); transform: none; }
+
+.source-preview {
+  display: none; margin-top: var(--space-4); padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border); border-left: 2px solid var(--color-accent);
+  background: var(--surface-raised); border-radius: var(--radius);
+}
+.source-preview .source-title { font-weight: 600; color: var(--text-primary); line-height: 1.4; }
+.source-preview .source-url {
+  display: block; margin-top: var(--space-1); color: var(--color-accent);
+  font-family: var(--font-mono); font-size: var(--fs-xs); word-break: break-all; text-decoration: none;
+}
+.source-preview .source-url:hover { text-decoration: underline; }
+.download-result {
+  display: none; margin-top: var(--space-4); padding: var(--space-4);
+  border: 1px solid rgba(74, 222, 128, .28); border-left: 2px solid var(--color-success);
+  background: var(--color-success-soft); border-radius: var(--radius);
+}
+.download-item {
+  margin-top: var(--space-3); padding: var(--space-4);
+  border: 1px solid var(--border); background: var(--surface-input); border-radius: var(--radius);
+  font-size: var(--fs-small);
+}
+.download-item a { color: var(--color-accent); font-family: var(--font-mono); font-size: var(--fs-xs); word-break: break-all; }
+.playlist-box {
+  display: none; margin-top: var(--space-4); padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border); border-left: 2px solid var(--color-primary);
+  background: var(--surface-raised); border-radius: var(--radius);
+}
+.playlist-box .actions { margin-top: var(--space-3); }
+.playlist-info { font-weight: 600; color: var(--text-primary); line-height: 1.4; }
+
+.format-browser { margin-top: var(--space-4); }
+.format-group {
+  border: 1px solid var(--border); background: rgba(255, 255, 255, .015);
+  border-radius: var(--radius); padding: var(--space-4); margin-top: var(--space-3);
+}
+.format-group-title {
+  font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 600; letter-spacing: .08em;
+  color: var(--text-secondary); margin-bottom: var(--space-3);
+}
+.audio-section { margin-top: var(--space-4); }
+.format-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: var(--space-2); }
+/* JS puts quality groups inside a .format-cards grid, give each a full row */
+.format-cards > .format-group { grid-column: 1 / -1; min-width: 0; margin-top: 0; }
+.format-card {
+  position: relative; border: 1px solid var(--border); background: var(--surface-raised);
+  border-radius: var(--radius); padding: var(--space-3); cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+.format-card:hover { border-color: #4A4E57; transform: translateY(-1px); box-shadow: var(--shadow-lift); }
+.format-card.selected { border-color: var(--color-accent); box-shadow: var(--glow-accent); background: #12202A; }
+.format-card input { position: absolute; opacity: 0; pointer-events: none; }
+.format-main { display: flex; justify-content: space-between; gap: var(--space-2); font-size: var(--fs-small); font-weight: 600; }
+.format-id { color: var(--color-accent); font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 500; }
+.format-meta { color: var(--text-muted); font-size: var(--fs-2xs); line-height: 1.55; margin-top: var(--space-2); }
+.format-chip {
+  display: inline-block; border: 1px solid rgba(237, 28, 36, .35); border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  padding: 1px 6px; margin: 3px 3px 0 0; color: #F2B8BA;
+  font-family: var(--font-mono); font-size: 10px;
+}
+
+.subtitle-list {
+  max-height: 260px; overflow: auto; border: 1px solid var(--border-strong);
+  background: var(--surface-input); border-radius: var(--radius); padding: var(--space-1);
+}
+.subtitle-item {
+  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm); cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.subtitle-item:hover { background: var(--surface-raised); }
+.subtitle-item.selected { background: var(--color-accent-soft); }
+.subtitle-item input { width: 17px; height: 17px; accent-color: var(--color-accent); flex: 0 0 auto; }
+.subtitle-name { font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 500; }
+.subtitle-meta { font-size: var(--fs-2xs); color: var(--text-muted); margin-left: auto; text-align: right; }
+.subtitle-actions { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+
+.terminal {
+  height: 310px; overflow: auto;
+  background: #0C0607; border: 1px solid var(--border-red); border-radius: var(--radius);
+  padding: var(--space-4);
+  color: #D9A3A5; font: 400 var(--fs-xs)/1.6 var(--font-mono);
+  white-space: pre-wrap; word-break: break-word;
+  box-shadow: inset 0 0 24px rgba(237, 28, 36, .06);
+}
+.terminal .err { color: #FF3B42; font-weight: 600; }
+.terminal .ok { color: #FF7C81; }
+.terminal .progress-line { color: #F5C2C4; }
+
+.terminal, .subtitle-list { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+.terminal { scrollbar-color: #5A2326 transparent; }
+
+@media (max-width: 768px) {
+  body { padding: var(--space-4); }
+  .card { padding: var(--space-4); }
+  .wrap > .card::before, #app > .card::before { left: var(--space-4); }
+  .header { align-items: flex-start; flex-direction: column; gap: var(--space-3); }
+  .grid, .row, .row3 { grid-template-columns: 1fr; }
+  .actions .btn { width: 100%; }
+  .format-cards { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div>
+      <div class="brand"><span>yt-dlp</span> Web</div>
+      
+    </div>
+    <div class="header-side">
+      <div class="status" id="status">● Checking login...</div>
+      <button class="mini-btn" id="logoutBtn" type="button" style="display:none">LOG OUT</button>
+    </div>
+  </div>
+
+  <div class="card login-card" id="loginView" style="display:none">
+    <div class="section-title">Log in</div>
+    <form id="loginForm">
+      <!-- only for password managers, there's a single password -->
+      <input type="text" name="username" value="yt-dlp" autocomplete="username" hidden>
+      <label class="label" for="password">Password</label>
+      <div class="row">
+        <input class="input" id="password" type="password" autocomplete="current-password" required>
+        <button class="btn primary" id="loginBtn" type="submit">LOG IN</button>
+      </div>
+      <div class="hint" id="loginStatus">You stay logged in until you log out, for at most a few days, or until the server stops.</div>
+    </form>
+  </div>
+
+  <div id="app" style="display:none">
+  <div class="card">
+    <div class="section-title">Source</div>
+    <label class="label" for="url">Video / media URL</label>
+    <div class="row row3">
+      <div class="url-box">
+        <input class="input" id="url" type="url" placeholder="https://..." autocomplete="off">
+        <button class="url-clear" id="urlClearBtn" type="button" title="Clear" aria-label="Clear URL" hidden>&times;</button>
+      </div>
+      <button class="btn primary" id="fetchBtn">FETCH FORMATS</button>
+      <button class="btn green" id="quickBtn">DOWNLOAD</button>
+    </div>
+    <div class="download-result" id="result"></div>
+    <div class="source-preview" id="sourcePreview">
+      <div class="source-title" id="sourceTitle"></div>
+      <a class="source-url" id="sourceUrl" href="#" target="_blank" rel="noopener"></a>
+    </div>
+    <div class="playlist-box" id="playlistBox">
+      <div class="playlist-info" id="playlistInfo">Playlist detected</div>
+      <div class="hint">Downloads every item in the best available quality, each as its own numbered file. Private or removed items are skipped; cancelling keeps the items already finished.</div>
+      <div class="actions">
+        <button class="btn green" id="playlistBtn" type="button">DOWNLOAD FULL PLAYLIST</button>
+        <button class="btn purple" id="playlistAudioBtn" type="button">DOWNLOAD PLAYLIST AUDIO ONLY</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- always visible: quick DOWNLOAD and playlists need these too -->
+  <div class="card">
+    <div class="section-title">Download settings</div>
+    <div class="grid">
+      <div class="field">
+        <label class="label" for="container">Video container</label>
+        <select class="select" id="container">
+          <option value="original" selected>Original / Auto</option>
+          <option value="mp4">MP4</option>
+          <option value="mkv">MKV</option>
+          <option value="webm">WebM</option>
+          <option value="mov">MOV</option>
+          <option value="avi">AVI</option>
+        </select>
+        <div class="hint">MKV holds every codec. MOV and AVI cannot hold VP9, AV1 or Opus, so automatic choices use H.264 + AAC there (on YouTube at most 1080p).</div>
+      </div>
+      <div class="field">
+        <label class="label" for="audioContainer">Audio container</label>
+        <select class="select" id="audioContainer">
+          <option value="original" selected>Original / Auto</option>
+          <option value="mp3">MP3</option>
+          <option value="m4a">M4A / AAC</option>
+          <option value="opus">Opus</option>
+          <option value="wav">WAV</option>
+          <option value="flac">FLAC</option>
+          <option value="aac">AAC</option>
+          <option value="alac">ALAC</option>
+        </select>
+        <div class="hint">Used by every AUDIO ONLY download, playlists included.</div>
+      </div>
+      <div class="field">
+        <label class="label" for="fileRetention">Keep actual file for</label>
+        <select class="select" id="fileRetention">
+          <option value="permanent" selected>Permanently</option><option value="30">30 minutes</option><option value="60">1 hour</option><option value="120">2 hours</option><option value="240">4 hours</option><option value="360">6 hours</option><option value="720">12 hours</option><option value="1440">24 hours</option>
+        </select>
+        <div class="hint">Controls deletion of the physical file.</div>
+      </div>
+      <div class="field">
+        <label class="label" for="accessDuration">Public URL accessible for</label>
+        <select class="select" id="accessDuration">
+          <option value="60" selected>1 hour</option><option value="30">30 minutes</option><option value="120">2 hours</option><option value="240">4 hours</option><option value="360">6 hours</option><option value="720">12 hours</option><option value="1440">24 hours</option><option value="lifetime">Lifetime</option>
+        </select>
+        <div class="hint">Only controls the random public URL lifetime.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Cookies</div>
+    <div class="grid">
+      <div class="field">
+        <label class="label" for="cookieFile">Saved cookie file</label>
+        <select class="select" id="cookieFile"><option value="">No saved cookie file</option></select>
+        <div class="cookie-note">Only filenames are shown. Cookie contents never go to the browser.</div>
+      </div>
+      <div class="field">
+        <label class="label" for="customCookies">Custom cookies</label>
+        <textarea class="textarea" id="customCookies" placeholder="Paste Netscape cookie data here. Custom cookies override the saved file."></textarea>
+      </div>
+    </div>
+    <div class="hint" id="cookieStatus">Cookies: loading...</div>
+  </div>
+
+  <div class="card options" id="optionsCard">
+    <div class="section-title">Format selection</div>
+
+    <div class="format-browser">
+      <div class="format-group">
+        <div class="format-group-title">VIDEO</div>
+        <div class="hint">Cards marked <b>video + audio</b> already carry their own audio track; the audio card below is only paired with video-only formats.</div>
+        <div class="format-cards" id="videoFormats"></div>
+      </div>
+
+      <div class="format-group audio-section">
+        <div class="format-group-title">AUDIO FORMATS — VIDEO + AUDIO / AUDIO ONLY</div>
+        <div class="hint">Click an audio card to choose the exact track used with the selected video. It is also the source used by AUDIO ONLY.</div>
+        <div class="format-cards" id="audioFormats"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin:12px 0 0;padding:14px;background:rgba(8,13,25,.55)">
+      <label class="check"><input id="includeAudio" type="checkbox" checked> INCLUDE AUDIO TRACK</label>
+      <div class="hint">Checked by default. The selected audio card is paired with the selected video. The highest-quality audio is selected automatically. Uncheck for video-only.</div>
+    </div>
+
+    <div class="field" style="margin-top:16px">
+      <label class="label">Selection</label>
+      <div class="hint" id="selectionStatus">No exact video format selected yet.</div>
+    </div>
+
+    <div class="card" style="margin:12px 0 0;padding:14px;background:rgba(8,13,25,.55)">
+      <label class="check"><input id="subtitleEnabled" type="checkbox"> SUBTITLES</label>
+      <div class="hint">Off by default. Enabling this fetches the available subtitle languages.</div>
+      <div class="grid" id="subtitleOptions" style="margin-top:12px;display:none">
+        <div class="field">
+          <label class="label">Subtitle languages</label>
+          <div class="subtitle-list" id="subtitleLang" aria-label="Subtitle languages">
+            <label class="subtitle-item selected"><input type="checkbox" value="en" checked disabled><span class="subtitle-name">English (en)</span></label>
+          </div>
+          <div class="subtitle-actions">
+            <button type="button" class="mini-btn" id="selectAllSubsBtn" disabled>SELECT ALL</button>
+            <button type="button" class="mini-btn" id="clearSubsBtn" disabled>CLEAR</button>
+          </div>
+          <div class="hint" id="subtitleStatus">Subtitle data has not been fetched.</div>
+        </div>
+        <div class="field">
+          <label class="label" for="subtitleMode">Subtitle output</label>
+          <select class="select" id="subtitleMode" disabled>
+            <option value="embed" selected>Embed subtitles</option>
+            <option value="srt">Separate .SRT</option>
+          </select>
+          <div class="hint">Select one or multiple languages. Manual and automatic captions are both requested when available. Embed is supported by MP4, WebM and MKV; other containers should use Separate .SRT.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn green" id="downloadSelectedBtn">DOWNLOAD SELECTED FORMAT</button>
+      <button class="btn" id="downloadBtn">DOWNLOAD BEST</button>
+      <button class="btn purple" id="audioBtn">DOWNLOAD AUDIO ONLY</button>
+      <button class="btn" id="subtitleOnlyBtn" disabled>DOWNLOAD SUBTITLE ONLY (.SRT)</button>
+      <button class="btn red" id="cancelBtn" style="display:none">CANCEL DOWNLOAD</button>
+    </div>
+    <div class="hint"><span class="pill">Best available — Auto</span> uses the best video plus best audio when enabled. Exact video cards preserve their exact format ID; audio is added separately when the toggle is on.</div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">yt-dlp output</div>
+    <div class="terminal" id="terminal">Waiting for a connection...</div>
+  </div>
+  </div>
+  <div class="footer">yt-dlp Web</div>
+</div>
+
+<script>
+'use strict';
+
+const $ = id => document.getElementById(id);
+
+// works behind a proxy under a sub-path too
+const BASE_PATH = location.pathname.replace(/\/index\.html$/, '').replace(/\/+$/, '');
+const appPath = path => BASE_PATH + (path.startsWith('/') ? path : '/' + path);
+
+// sessionStorage per tab, localStorage seeds new tabs, so a reload never picks up another tab's job.
+
+const STORED_KEYS = ['ytDlpJobId', 'ytDlpMediaTitle', 'ytDlpMediaUrl', 'ytDlpPublicResult'];
+const storageArea = name => { try { return window[name]; } catch { return null; } };
+const tabStorage = storageArea('sessionStorage');
+const sharedStorage = storageArea('localStorage');
+const store = {
+  get(key) {
+    try { const own = tabStorage.getItem(key); if (own !== null) return own; } catch {}
+    try { return sharedStorage.getItem(key) || ''; } catch { return ''; }
+  },
+  set(key, value) {
+    try { tabStorage.setItem(key, value || ''); } catch {}
+    try { if (value) sharedStorage.setItem(key, value); else sharedStorage.removeItem(key); } catch {}
+  },
+};
+for (const key of STORED_KEYS) {
+  try { if (tabStorage.getItem(key) === null) tabStorage.setItem(key, sharedStorage.getItem(key) || ''); } catch {}
+}
+
+const conn = {ws: null, reconnectTimer: null, refused: 0};
+const session = {loggedIn: false, lockTimer: null};
+const job = {
+  id: store.get('ytDlpJobId'),
+  starting: false,  // request sent, job_started not back yet
+  running: false,
+};
+const media = {title: store.get('ytDlpMediaTitle'), url: store.get('ytDlpMediaUrl')};
+// Formats and subtitle languages only count for the URL they were fetched for.
+const picker = {
+  all: [],
+  video: '',       // selected format ids
+  audio: '',
+  loadedFor: '',   // URL the cards belong to
+  title: '',       // its title (media.title also gets set by jobs)
+  pendingUrl: '',  // newest FETCH FORMATS still waiting
+};
+const subs = {loadedFor: '', refetchTimer: null};
+const resultView = {timer: null, lastHtml: ''};
+const playlist = {url: '', title: ''};  // what the playlist box offers ('' = hidden)
+let clockOffset = 0;  // server clock - device clock, seconds
+let progressLine = null;
+
+// events of one job; an older job's must not take over the page
+const JOB_EVENTS = new Set(['progress', 'output', 'log', 'command', 'warning', 'complete', 'error', 'cancelled']);
+const DOWNLOAD_BUTTONS = ['quickBtn', 'downloadSelectedBtn', 'downloadBtn', 'audioBtn', 'playlistBtn', 'playlistAudioBtn'];
+
+function setStatus(text, good = false) {
+  const el = $('status');
+  el.textContent = '● ' + text;
+  el.style.color = good ? 'var(--green)' : 'var(--muted)';
+}
+
+function updateProgress(message) {
+  const terminal = $('terminal');
+  if (!progressLine) {
+    progressLine = document.createElement('div');
+    progressLine.className = 'progress-line';
+    terminal.appendChild(progressLine);
+  }
+  progressLine.textContent = message;
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function log(message, cls = '') {
+  const terminal = $('terminal');
+  progressLine = null;
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = message;
+  terminal.appendChild(line);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function clearLog() {
+  $('terminal').innerHTML = '';
+  progressLine = null;
+}
+
+function escapeHtml(value) {
+  return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+}
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+function formatSize(value) {
+  if (value === null || value === undefined || value === '') return 'size unknown';
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value);
+  if (n >= 1024 ** 3) return (n / 1024 ** 3).toFixed(2) + ' GiB';
+  if (n >= 1024 ** 2) return (n / 1024 ** 2).toFixed(1) + ' MiB';
+  if (n >= 1024) return (n / 1024).toFixed(1) + ' KiB';
+  return n + ' B';
+}
+
+function showPlaylist(info, url) {
+  playlist.url = url;
+  playlist.title = String(info?.title || '').trim();
+  const count = Number(info?.count) || 0;
+  $('playlistInfo').textContent = 'Playlist detected' + (playlist.title ? ': ' + playlist.title : '')
+    + (count ? ` • ${plural(count, 'item')}` : '');
+  $('playlistBox').style.display = 'block';
+}
+
+function hidePlaylist() {
+  playlist.url = '';
+  playlist.title = '';
+  $('playlistBox').style.display = 'none';
+}
+
+function renderSource(title, url) {
+  const cleanTitle = String(title || '').trim();
+  const cleanUrl = String(url || '').trim();
+  if (!cleanTitle && !cleanUrl) {
+    $('sourcePreview').style.display = 'none';
+    return;
+  }
+  $('sourceTitle').textContent = cleanTitle || 'Media source';
+  $('sourceUrl').textContent = cleanUrl;
+  $('sourceUrl').href = /^https?:\/\//i.test(cleanUrl) ? cleanUrl : '#';
+  $('sourcePreview').style.display = 'block';
+}
+
+function rememberMedia(title, url) {
+  media.title = String(title || '').trim();
+  media.url = String(url || '').trim();
+  store.set('ytDlpMediaTitle', media.title);
+  store.set('ytDlpMediaUrl', media.url);
+  renderSource(media.title, media.url);
+}
+
+function rememberJob(jobId) {
+  job.id = String(jobId || '');
+  store.set('ytDlpJobId', job.id);
+}
+
+// forget finished jobs so a reconnect won't restore them over newer work
+function forgetJob() {
+  rememberJob('');
+  showCancel(false);
+}
+
+function showCancel(show) {
+  const btn = $('cancelBtn');
+  btn.style.display = show ? '' : 'none';
+  btn.disabled = false;
+  btn.textContent = 'CANCEL DOWNLOAD';
+  job.running = show;
+  refreshDownloadButtons();
+}
+
+function refreshDownloadButtons() {
+  const busy = job.starting || job.running;
+  for (const id of DOWNLOAD_BUTTONS) $(id).disabled = busy;
+  updateSubtitleOnlyButton();
+}
+
+function updateSubtitleOnlyButton() {
+  $('subtitleOnlyBtn').disabled = job.starting || job.running || !$('subtitleEnabled').checked
+    || subs.loadedFor !== $('url').value.trim() || !getSelectedSubtitleLanguages().length;
+}
+
+function loadSavedPublicResult() {
+  try {
+    const raw = store.get('ytDlpPublicResult');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePublicResult(data) {
+  store.set('ytDlpPublicResult', JSON.stringify({
+    source_url: data.source_url || media.url || '',
+    // a result with its own source has its own title, never borrow another video's
+    media_title: data.source_url ? (data.media_title || '') : (data.media_title || media.title || ''),
+    files: Array.isArray(data.files) ? data.files : [],
+    saved_at: Date.now(),
+  }));
+}
+
+function forgetOldResult() {
+  clearInterval(resultView.timer);
+  resultView.timer = null;
+  store.set('ytDlpPublicResult', '');
+}
+
+function publicFileExpired(file) {
+  if (file?.expired) return true;
+  const now = Date.now() / 1000 + clockOffset;
+  const accessUntil = Number(file?.access_until);
+  const deleteAt = Number(file?.file_delete_at);
+  if (Number.isFinite(accessUntil) && accessUntil > 0 && now >= accessUntil) return true;
+  if (Number.isFinite(deleteAt) && deleteAt > 0 && now >= deleteAt) return true;
+  return false;
+}
+
+// redraw every 10 s to catch expiry
+function schedulePublicResultRefresh() {
+  clearInterval(resultView.timer);
+  resultView.timer = setInterval(() => {
+    const saved = loadSavedPublicResult();
+    if (saved) renderComplete(saved, false);
+  }, 10000);
+}
+
+// skip identical HTML, rewriting it kills a text selection
+function setResultHtml(box, html) {
+  if (html === resultView.lastHtml) return;
+  resultView.lastHtml = html;
+  box.innerHTML = html;
+}
+
+function fileHtml(file) {
+  const raw = String(file.url || '');
+  const href = /^(https?:|wss?:|blob:|data:)/i.test(raw) ? raw : appPath(raw);
+  const label = escapeHtml(file.filename || 'Download');
+  const fullUrl = escapeHtml(new URL(href, location.href).href);  // absolute, so it pastes straight into VLC
+  if (publicFileExpired(file)) {
+    return `<div class="download-item">
+      <div><strong>File:</strong> ${label}</div>
+      <div style="margin-top:8px"><strong>Link expired.</strong></div>
+      <div style="margin-top:5px;color:var(--muted)">This public URL is no longer valid.</div>
+    </div>`;
+  }
+  // dies at whichever comes first: access window or file deletion
+  const ends = [file.access_until, file.file_delete_at].map(Number).filter(t => Number.isFinite(t) && t > 0);
+  const expiresAt = ends.length ? Math.min(...ends) : 0;
+  const expiryText = expiresAt > 0
+    ? `<div style="margin-top:5px;color:var(--muted)">Valid until: ${escapeHtml(new Date((expiresAt - clockOffset) * 1000).toLocaleString())}</div>`
+    : '';
+  return `<div class="download-item">
+    <div><strong>File:</strong> ${label}</div>
+    <div style="margin-top:5px"><strong>Download URL:</strong></div>
+    <a class="download-url" href="${fullUrl}" target="_blank" rel="noopener">${fullUrl}</a>
+    ${expiryText}
+  </div>`;
+}
+
+// persist=false: redraw only, leave status and preview alone
+function renderComplete(data, persist = true) {
+  const files = Array.isArray(data.files) ? data.files : [];
+  const box = $('result');
+  box.style.display = 'block';
+  schedulePublicResultRefresh();
+
+  if (persist) {
+    savePublicResult(data);
+    const live = !files.length || files.some(file => !publicFileExpired(file));
+    setStatus(live ? 'Download complete' : 'Link expired', live);
+    const source = data.source_url || media.url || $('url').value.trim();
+    const title = data.source_url ? data.media_title : (data.media_title || media.title);
+    if (!picker.loadedFor || picker.loadedFor === source) renderSource(title, source);
+  }
+
+  if (!files.length) {
+    setResultHtml(box, '<strong>Download completed.</strong><div style="margin-top:8px;color:var(--muted)">The server did not return a public URL for this job.</div>');
+    return;
+  }
+  const heading = files.some(file => !publicFileExpired(file)) ? 'Download complete.' : 'Link expired.';
+  setResultHtml(box, `<strong>${heading}</strong>` + files.map(fileHtml).join(''));
+}
+
+async function checkSession() {
+  // true / false, or null when the server is unreachable
+  try {
+    const response = await fetch(appPath('/session'), {cache: 'no-store'});
+    const data = await response.json();
+    const serverTime = Number(data.server_time);
+    if (Number.isFinite(serverTime) && serverTime > 0) clockOffset = serverTime - Date.now() / 1000;
+    const days = Number(data.session_days) || 0;
+    if (days) {
+      $('loginStatus').dataset.default = `You stay logged in for up to ${plural(days, 'day')}, until you log out, or until the server stops.`;
+    }
+    return !!data.logged_in;
+  } catch {
+    return null;
+  }
+}
+
+function setLoginStatus(text, isError = false) {
+  const el = $('loginStatus');
+  el.textContent = text || el.dataset.default || '';
+  el.classList.toggle('login-error', isError);
+}
+
+function showLogin(message = '', isError = false) {
+  session.loggedIn = false;
+  clearTimeout(conn.reconnectTimer);
+  if (conn.ws) { conn.ws.onclose = null; try { conn.ws.close(); } catch {} conn.ws = null; }
+  job.starting = false;
+  showCancel(false);
+  $('app').style.display = 'none';
+  $('logoutBtn').style.display = 'none';
+  $('loginView').style.display = '';
+  setStatus('Logged out');
+  setLoginStatus(message, isError);
+  $('password').value = '';
+  $('password').focus();
+}
+
+function showApp() {
+  session.loggedIn = true;
+  $('loginView').style.display = 'none';
+  $('app').style.display = '';
+  $('logoutBtn').style.display = '';
+  loadCookies();
+  const saved = loadSavedPublicResult();
+  if (saved) {
+    media.title = String(saved.media_title || media.title || '').trim();
+    media.url = String(saved.source_url || media.url || '').trim();
+    renderComplete(saved, false);
+  }
+  connect();
+}
+
+function lockLogin(seconds, message) {
+  clearInterval(session.lockTimer);
+  let left = seconds;
+  const tick = () => {
+    if (left <= 0) { clearInterval(session.lockTimer); $('loginBtn').disabled = false; setLoginStatus(''); return; }
+    setLoginStatus(`${message} (${left} s)`, true);
+    left--;
+  };
+  $('loginBtn').disabled = true;
+  tick();
+  session.lockTimer = setInterval(tick, 1000);
+}
+
+$('loginForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const password = $('password').value;
+  if (!password || $('loginBtn').disabled) return;
+  $('loginBtn').disabled = true;
+  setLoginStatus('Checking password...');
+  try {
+    const response = await fetch(appPath('/login'), {
+      method: 'POST', cache: 'no-store',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({password}),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok) {
+      $('loginBtn').disabled = false;
+      $('password').value = '';
+      setLoginStatus('');
+      showApp();
+      return;
+    }
+    const retry = Number(data.retry_after || response.headers.get('Retry-After')) || 0;
+    if (retry) {  // 429 blocked / 503 busy
+      lockLogin(retry, response.status === 429 ? 'Too many wrong passwords. Try again later.' : 'The server is busy. Try again in a moment.');
+    } else {
+      $('loginBtn').disabled = false;
+      setLoginStatus(data.error || 'Login failed.', true);
+      $('password').select();
+    }
+  } catch {
+    $('loginBtn').disabled = false;
+    setLoginStatus('Could not reach the server.', true);
+  }
+});
+
+$('logoutBtn').addEventListener('click', async () => {
+  $('logoutBtn').disabled = true;
+  try { await fetch(appPath('/logout'), {method: 'POST', cache: 'no-store'}); } catch {}
+  for (const key of STORED_KEYS) store.set(key, '');  // leave nothing for the next person on this browser
+  location.reload();
+});
+
+async function start() {
+  const state = await checkSession();
+  if (state === true) showApp();
+  else if (state === false) showLogin();
+  else { setStatus('Server unreachable — retrying'); setTimeout(start, 3000); }
+}
+
+function connected() {
+  return !!conn.ws && conn.ws.readyState === WebSocket.OPEN;
+}
+
+function send(payload) {
+  if (!connected()) {
+    log('[ERROR] WebSocket is not connected.', 'err');
+    return false;
+  }
+  conn.ws.send(JSON.stringify(payload));
+  return true;
+}
+
+async function checkAuthThenReconnect() {
+  const delay = Math.min(30000, 1500 * 2 ** conn.refused);  // 1.5 s, 3 s, 6 s ... 30 s
+  conn.refused++;
+  const state = await checkSession();
+  if (state === false) {
+    showLogin('Your login has ended (the server was restarted, or it expired). Log in again.');
+    return;
+  }
+  if (state === true) setStatus('Live connection refused — retrying');
+  conn.reconnectTimer = setTimeout(connect, delay);
+}
+
+function connect() {
+  clearTimeout(conn.reconnectTimer);
+  if (!session.loggedIn) return;
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  setStatus('Connecting...');
+  if (media.title || media.url) renderSource(media.title, media.url);
+
+  let ws;
+  try {
+    ws = conn.ws = new WebSocket(`${protocol}//${location.host}${appPath('/ws')}`);
+  } catch {
+    setStatus('Connection failed');
+    conn.reconnectTimer = setTimeout(connect, 1500);
+    return;
+  }
+
+  let opened = false;
+  ws.onopen = () => {
+    opened = true;
+    conn.refused = 0;
+    setStatus('Connected', true);
+    log('[SYSTEM] WebSocket connected.', 'ok');
+    // resume first, a ?go=1 link waits for its answer
+    if (job.id) send({action: 'resume', job_id: job.id});
+    else runAutoStart();
+    const url = $('url').value.trim();
+    if ($('subtitleEnabled').checked && url && subs.loadedFor !== url) fetchSubtitleData();
+  };
+  ws.onclose = event => {
+    setStatus('Disconnected');
+    // an in-flight download request gets resumed by its stored id
+    if (event.code === 4001) { showLogin('You were logged out.'); return; }
+    if (opened) conn.reconnectTimer = setTimeout(connect, 1500);
+    else checkAuthThenReconnect();  // never opened: maybe the login is gone
+  };
+  ws.onerror = () => setStatus('WebSocket error');
+  ws.onmessage = event => {
+    let data;
+    try { data = JSON.parse(event.data); } catch { return; }
+    if (JOB_EVENTS.has(data.type) && data.job_id && job.id && data.job_id !== job.id) {
+      logEarlierJob(data);
+      return;
+    }
+    if (Object.hasOwn(handlers, data.type)) handlers[data.type](data);
+  };
+}
+
+function logEarlierJob(data) {
+  if (data.type === 'complete') {
+    for (const f of data.files || []) log(`[DONE] (earlier download) ${f.filename}: ${location.origin + appPath(f.url)}`, 'ok');
+  } else if (data.type === 'error') {
+    log('[ERROR] (earlier download) ' + (data.message || ''), 'err');
+  }
+}
+
+// clears "Fetching formats..." when the answer is for an older URL and gets dropped
+function settleFormatsFetch(requestUrl, stale) {
+  if (!requestUrl || requestUrl !== picker.pendingUrl) return;
+  picker.pendingUrl = '';
+  if (stale) setStatus(job.starting || job.running ? 'Download in progress' : 'Connected', true);
+}
+
+const isStale = requestUrl => !!requestUrl && requestUrl !== $('url').value.trim();
+
+function logOutput(data) {
+  log(data.message || data.line || '');
+}
+
+const handlers = {
+  progress: data => updateProgress(data.message || ''),
+  output: logOutput,
+  log: logOutput,
+  command: logOutput,
+
+  error(data) {
+    const staleFetch = data.fetch && isStale(data.request_url);
+    log('[ERROR] ' + (staleFetch ? '(previous URL) ' : '') + (data.message || 'Unknown error.'), 'err');
+    if (data.fetch === 'formats') settleFormatsFetch(data.request_url, staleFetch);
+    if (staleFetch) return;
+    if (data.fetch === 'subtitles') {  // only the subtitle panel cares
+      $('subtitleStatus').textContent = 'Could not fetch subtitle languages: ' + (data.message || 'unknown error.');
+      return;
+    }
+    setStatus('Error');
+    if (data.job_id && data.job_id === job.id) forgetJob();
+    // no job and no fetch (e.g. rejected URL) = answer to the download just requested
+    if (!data.job_id && !data.fetch && job.starting) { job.starting = false; forgetJob(); }
+  },
+
+  cancelled(data) {
+    log('[SYSTEM] ' + (data.message || 'Download cancelled.'), 'err');
+    setStatus('Cancelled');
+    if (!data.job_id || data.job_id === job.id) forgetJob();
+  },
+
+  cancel_unavailable(data) {
+    log('[SYSTEM] ' + (data.message || 'This download is no longer running.'), 'err');
+    if (!data.job_id || data.job_id === job.id) showCancel(false);
+  },
+
+  warning(data) {
+    log('[WARNING] ' + (data.message || 'Some optional items failed.'), 'err');
+    // quick download of a playlist link only got the first item: offer the rest
+    if (data.playlist_url && data.playlist_url === $('url').value.trim()) showPlaylist({}, data.playlist_url);
+  },
+
+  playlist(data) {
+    const requested = String(data.request_url || '');
+    const stale = isStale(requested);
+    settleFormatsFetch(requested, stale);
+    if (stale) return;
+    const info = data.playlist || {};
+    showPlaylist(info, requested || $('url').value.trim());
+    rememberMedia(info.title, playlist.url);
+    const count = Number(info.count) || 0;
+    log(`[SYSTEM] This link is a playlist${count ? ` with ${plural(count, 'item')}` : ''}. `
+        + 'Use DOWNLOAD FULL PLAYLIST, or open a single video from it to pick exact formats.', 'ok');
+    setStatus('Playlist detected', true);
+  },
+
+  formats(data) {
+    const requested = String(data.request_url || '');
+    const stale = isStale(requested);
+    settleFormatsFetch(requested, stale);
+    if (stale) {
+      log('[SYSTEM] Ignored formats for a previous URL.');
+      return;
+    }
+    picker.all = Array.isArray(data.formats) ? data.formats : [];
+    picker.loadedFor = requested || $('url').value.trim();
+    picker.title = String(data.media?.title || '').trim();
+    if (data.media) rememberMedia(data.media.title, data.media.url);
+    if (data.playlist) showPlaylist(data.playlist, picker.loadedFor);  // video opened from a &list= link
+    else hidePlaylist();
+    buildVideoFormats(picker.all);
+    buildAudioFormats(picker.all);
+    $('optionsCard').style.display = 'block';
+    log('[SYSTEM] Formats loaded.', 'ok');
+    setStatus('Formats ready', true);
+  },
+
+  subtitles(data) {
+    const requested = String(data.request_url || '');
+    if (isStale(requested)) return;
+    subs.loadedFor = requested || $('url').value.trim();
+    buildSubtitleOptions(data.subtitles || []);
+  },
+
+  job_started(data) {
+    job.starting = false;
+    rememberJob(data.job_id);
+    rememberMedia(data.media_title, data.source_url || $('url').value.trim());
+    showCancel(true);
+  },
+
+  session_expired(data) {
+    if (!data.job_id || data.job_id === job.id) {
+      if (job.starting) log('[ERROR] The connection dropped before the download request arrived. Start it again.', 'err');
+      job.starting = false;
+      forgetJob();
+    }
+    const saved = loadSavedPublicResult();
+    if (saved) renderComplete(saved, false);
+    runAutoStart();
+  },
+
+  session_restored(data) {
+    job.starting = false;  // a request in flight when the connection dropped did arrive
+    rememberJob(data.job_id || job.id);
+    rememberMedia(data.media_title, data.source_url || media.url);
+
+    clearLog();
+    log('[SYSTEM] Job session restored.', 'ok');
+    const events = Array.isArray(data.events) ? data.events : [];
+    for (const event of events) {
+      if (event.type === 'progress') updateProgress(event.message || '');
+      else if (event.type === 'output' || event.type === 'log' || event.type === 'command') logOutput(event);
+      else if (event.type === 'warning') log('[WARNING] ' + (event.message || 'Some optional items failed.'), 'err');
+    }
+
+    const active = data.status === 'running' || data.status === 'queued';
+    showCancel(!!data.cancellable && active);
+    if (data.progress && active) updateProgress(data.progress);  // a finished job's last progress line is stale
+
+    let restored = data.result;
+    if (!restored && data.status === 'completed') {
+      restored = [...events].reverse().find(event => event?.type === 'complete');
+    }
+
+    if (restored && Array.isArray(restored.files) && restored.files.length) {
+      renderComplete(restored);  // the server may have recovered files even for a stale status
+    } else if (data.status === 'completed') {
+      renderComplete(restored || {source_url: media.url, media_title: media.title, files: []});
+    } else if (data.status === 'failed') {
+      log('[ERROR] ' + (data.error || 'Download failed.'), 'err');
+      setStatus('Error');
+    } else if (data.status === 'cancelled') {
+      log('[SYSTEM] Download cancelled.', 'err');
+      setStatus('Cancelled');
+    } else if (active) {
+      setStatus('Download in progress', true);
+    }
+    if (!active) forgetJob();
+    runAutoStart();
+  },
+
+  complete(data) {
+    if (!data.job_id || data.job_id === job.id) forgetJob();
+    renderComplete(data);
+  },
+};
+
+function formatCard(f, type, selected) {
+  const card = document.createElement('label');
+  card.className = 'format-card' + (selected ? ' selected' : '');
+  const radio = document.createElement('input');
+  radio.type = 'radio';
+  radio.name = type === 'video' ? 'videoFormat' : 'audioFormat';
+  radio.value = f.id;
+  radio.checked = selected;
+
+  const main = document.createElement('div');
+  main.className = 'format-main';
+  const title = document.createElement('span');
+  title.textContent = type === 'video' ? (f.quality_label || f.resolution || 'Video') : (f.abr ? `${Math.round(f.abr)} kbps` : 'Audio');
+  const id = document.createElement('span');
+  id.className = 'format-id';
+  id.textContent = f.id;
+  main.append(title, id);
+
+  const meta = document.createElement('div');
+  meta.className = 'format-meta';
+  const chips = [];
+  if (type === 'audio') {  // same-bitrate tracks differ by language (dubs) or DRC
+    if (f.language) chips.push(f.language);
+    if (f.format_note) chips.push(f.format_note);
+  }
+  if (f.combined) chips.push(f.vcodec || f.acodec ? 'video + audio' : 'codecs not reported');
+  chips.push(f.ext || 'unknown');
+  chips.push(formatSize(f.filesize));
+  if (f.resolution && f.resolution !== 'audio only') chips.push(f.resolution);
+  if (f.protocol) chips.push(f.protocol);
+  if (f.vcodec && f.vcodec !== 'none') chips.push(f.vcodec);
+  if (f.acodec && f.acodec !== 'none') chips.push(f.acodec);
+  for (const value of chips) {
+    const chip = document.createElement('span');
+    chip.className = 'format-chip';
+    chip.textContent = value;
+    meta.appendChild(chip);
+  }
+
+  card.append(radio, main, meta);
+  card.addEventListener('click', () => {
+    if (type === 'video') picker.video = f.id;
+    else picker.audio = f.id;
+    renderSelection();
+  });
+  return card;
+}
+
+function formatGroup(label, items, type, selectedId) {
+  const group = document.createElement('div');
+  group.className = 'format-group';
+  const title = document.createElement('div');
+  title.className = 'format-group-title';
+  title.textContent = label;
+  const cards = document.createElement('div');
+  cards.className = 'format-cards';
+  items.forEach(f => cards.appendChild(formatCard(f, type, f.id === selectedId)));
+  group.append(title, cards);
+  return group;
+}
+
+function buildVideoFormats(formats) {
+  const root = $('videoFormats');
+  root.innerHTML = '';
+  const videos = formats.filter(f => f.kind === 'video' && f.id);
+  const quality = f => parseInt(f.quality_label, 10) || Number(f.height) || 0;
+  const sorted = [...videos].sort((a, b) => quality(b) - quality(a) || Number(b.tbr || 0) - Number(a.tbr || 0));
+
+  const autoGroup = document.createElement('div');
+  autoGroup.className = 'format-group';
+  autoGroup.style.marginTop = '0';
+  autoGroup.innerHTML = '<div class="format-group-title">AUTO</div>';
+  const autoCards = document.createElement('div');
+  autoCards.className = 'format-cards';
+  const auto = document.createElement('label');
+  auto.className = 'format-card' + (!picker.video ? ' selected' : '');
+  auto.innerHTML = '<input type="radio" name="videoFormat" value=""><div class="format-main"><span>Best available — Auto</span><span class="format-id">AUTO</span></div><div class="format-meta"><span class="format-chip">bestvideo+bestaudio/best</span></div>';
+  auto.addEventListener('click', () => { picker.video = ''; renderSelection(); });
+  autoCards.appendChild(auto);
+  autoGroup.appendChild(autoCards);
+  root.appendChild(autoGroup);
+
+  const groups = new Map();
+  for (const f of sorted) {
+    const label = f.quality_label || 'Other';
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label).push(f);
+  }
+  [...groups.entries()]
+    .sort((a, b) => (parseInt(b[0], 10) || 0) - (parseInt(a[0], 10) || 0))
+    .forEach(([label, items]) => root.appendChild(formatGroup(label, items, 'video', picker.video)));
+
+  // default = yt-dlp's bestvideo: the last entry in its own ranking
+  if (!picker.video && videos.length) {
+    const videoOnly = videos.filter(f => !f.combined);
+    picker.video = (videoOnly.length ? videoOnly : videos).at(-1).id;
+  }
+  renderSelection();
+}
+
+function buildAudioFormats(formats) {
+  const root = $('audioFormats');
+  root.innerHTML = '';
+  // reversed = yt-dlp's best first, so the default matches bestaudio
+  const audios = formats.filter(f => f.kind === 'audio' && f.id).reverse();
+  const groups = new Map();
+  for (const f of audios) {
+    const ext = String(f.ext || 'original').toUpperCase();
+    if (!groups.has(ext)) groups.set(ext, []);
+    groups.get(ext).push(f);
+  }
+  for (const [ext, items] of groups) root.appendChild(formatGroup(ext, items, 'audio', picker.audio));
+  if (!picker.audio && audios.length) picker.audio = audios[0].id;
+  renderSelection();
+}
+
+function renderSelection() {
+  document.querySelectorAll('.format-card').forEach(card => {
+    const radio = card.querySelector('input');
+    if (!radio) return;
+    const selected = radio.value === (radio.name === 'videoFormat' ? picker.video : picker.audio);
+    radio.checked = selected;
+    card.classList.toggle('selected', selected);
+  });
+  const video = picker.all.find(f => f.id === picker.video);
+  const audio = picker.all.find(f => f.id === picker.audio);
+  let audioText = ' • video only';
+  if (video?.combined) {
+    audioText = ' • uses its own audio track';
+  } else if ($('includeAudio').checked) {
+    audioText = audio
+      ? ` + audio ${audio.id} (${audio.language ? audio.language + ', ' : ''}${audio.abr ? Math.round(audio.abr) + ' kbps' : (audio.ext || 'auto')})`
+      : ' + best audio';
+  }
+  $('selectionStatus').textContent = video
+    ? `Video: exact ID ${video.id} • ${video.quality_label || video.resolution || ''} • ${video.ext}${audioText}`
+    : `Video: Best available — Auto${audioText}`;
+}
+
+const subtitleInputs = () => [...document.querySelectorAll('#subtitleLang input[type="checkbox"]')];
+
+function getSelectedSubtitleLanguages() {
+  return subtitleInputs().filter(input => input.checked).map(input => input.value).filter(Boolean);
+}
+
+function updateSubtitleSelectionUI() {
+  document.querySelectorAll('#subtitleLang .subtitle-item').forEach(item => {
+    item.classList.toggle('selected', !!item.querySelector('input')?.checked);
+  });
+  updateSubtitleOnlyButton();
+}
+
+function buildSubtitleOptions(list) {
+  const root = $('subtitleLang');
+  root.innerHTML = '';
+
+  if (!list.length) {
+    const empty = document.createElement('div');
+    empty.className = 'hint';
+    empty.style.padding = '10px';
+    empty.textContent = 'No subtitles reported by yt-dlp.';
+    root.appendChild(empty);
+    $('selectAllSubsBtn').disabled = true;
+    $('clearSubsBtn').disabled = true;
+    updateSubtitleOnlyButton();
+    $('subtitleStatus').textContent = 'No subtitles were reported by yt-dlp.';
+    return;
+  }
+
+  for (const item of list) {
+    const label = document.createElement('label');
+    label.className = 'subtitle-item';
+
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = item.code;
+    // SELECT ALL skips machine translations (~100 on YouTube, all of them = 429) and live chat
+    if (!item.translated && !item.chat) input.dataset.bulk = '1';
+    input.addEventListener('change', updateSubtitleSelectionUI);
+
+    const name = document.createElement('span');
+    name.className = 'subtitle-name';
+    name.textContent = item.code.toLowerCase() === 'en' ? 'English (en)' : item.code;
+
+    const meta = document.createElement('span');
+    meta.className = 'subtitle-meta';
+    const sources = [];
+    if (item.chat) sources.push('live chat replay');
+    else if (item.manual) sources.push('manual');
+    if (item.auto) sources.push(item.translated ? 'auto-translated' : 'auto');
+    const parts = [];
+    if (sources.length) parts.push(sources.join(' + '));
+    if (Array.isArray(item.formats) && item.formats.length) parts.push(item.formats.join(', '));
+    meta.textContent = parts.join(' • ');
+
+    label.append(input, name, meta);
+    root.appendChild(label);
+  }
+
+  const english = subtitleInputs().find(input => /^en(-|$)/i.test(input.value));
+  if (english) english.checked = true;
+
+  const enabled = $('subtitleEnabled').checked;  // may have been switched off while fetching
+  subtitleInputs().forEach(input => { input.disabled = !enabled; });
+  $('selectAllSubsBtn').disabled = !enabled;
+  $('clearSubsBtn').disabled = !enabled;
+  $('subtitleStatus').textContent = `${plural(list.length, 'language')} available. English is selected by default.`;
+  updateSubtitleSelectionUI();
+}
+
+function fetchSubtitleData() {
+  clearTimeout(subs.refetchTimer);
+  const url = $('url').value.trim();
+  if (!url) { $('subtitleStatus').textContent = 'Enter a URL first.'; return; }
+  if (!connected()) { $('subtitleStatus').textContent = 'Not connected; subtitle languages will be fetched once the connection is back.'; return; }
+  subs.loadedFor = '';
+  updateSubtitleOnlyButton();
+  $('subtitleStatus').textContent = 'Fetching subtitle data...';
+  send({action: 'fetch_subtitles', url, ...cookiePayload()});
+}
+
+const cookiePayload = () => ({cookie_file: $('cookieFile').value, custom_cookies: $('customCookies').value});
+
+// title, format ids and subtitle languages only go out with the URL they belong to
+function commonPayload() {
+  const url = $('url').value.trim();
+  return {
+    url,
+    ...cookiePayload(),
+    file_retention: $('fileRetention').value,
+    access_duration: $('accessDuration').value,
+    subtitle_enabled: $('subtitleEnabled').checked,
+    subtitle_mode: $('subtitleMode').value,
+    subtitle_lang: subs.loadedFor === url ? getSelectedSubtitleLanguages() : [],
+    media_title: picker.loadedFor === url ? picker.title : '',
+  };
+}
+
+function formatsFor(url) {
+  const fresh = picker.loadedFor === url;
+  return {video: fresh ? picker.video : '', audio: fresh ? picker.audio : ''};
+}
+
+// 24 url-safe chars like the server's ids; getRandomValues works on plain http too
+function newJobId() {
+  const bytes = crypto.getRandomValues(new Uint8Array(18));
+  return btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_');
+}
+
+function startDownload(payload, message, status = 'Downloading...') {
+  if (job.starting || job.running) return;
+  if (!payload.url) { log('[ERROR] Enter a URL first.', 'err'); return; }
+  if (payload.action === 'download_video' && payload.subtitle_enabled && !payload.subtitle_lang.length) {
+    log('[WARNING] No subtitle languages are loaded for this URL; downloading without subtitles.', 'err');
+  }
+  log(message);
+  const jobId = newJobId();
+  if (!send({...payload, job_id: jobId})) return;  // failed send keeps the old result
+  rememberJob(jobId);  // before job_started, so a dropped connection still resumes it
+  $('result').style.display = 'none';
+  forgetOldResult();
+  setStatus(status);
+  job.starting = true;
+  refreshDownloadButtons();
+}
+
+function quickDownload() {
+  startDownload({action: 'download_video', ...commonPayload(), video_format_id: '',
+                 include_audio: true, audio_format_id: '', container: $('container').value},
+                '[SYSTEM] Starting best-quality download...');
+}
+
+// ?go=1 links can come from any site, so ask first. Runs once, after any restore.
+function runAutoStart() {
+  if (!autoStart) return;
+  autoStart = false;
+  if (job.running) {
+    log('[SYSTEM] Another download is still running; press DOWNLOAD to start the shared link after it.', 'err');
+    return;
+  }
+  const url = $('url').value.trim();
+  if (!url || !confirm(`Start a best-quality download of this link?\n\n${url}`)) {
+    log('[SYSTEM] Shared link loaded; press DOWNLOAD to start it.');
+    return;
+  }
+  quickDownload();
+}
+
+async function loadCookies() {
+  try {
+    const response = await fetch(appPath('/cookies'), {cache: 'no-store'});
+    if (response.status === 401) { showLogin('Your login has ended. Log in again.'); return; }
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const files = await response.json();
+    const select = $('cookieFile');
+    select.innerHTML = '<option value="">No saved cookie file</option>';
+    for (const file of files) {
+      const option = document.createElement('option');
+      option.value = file;
+      option.textContent = file;
+      select.appendChild(option);
+    }
+    $('cookieStatus').textContent = files.length ? `${plural(files.length, 'saved cookie file')} available` : 'No saved cookie files found';
+  } catch {
+    $('cookieStatus').textContent = 'Unable to load cookie list';
+  }
+}
+
+function updateCookieStatus() {
+  const selected = $('cookieFile').value;
+  $('cookieStatus').textContent = $('customCookies').value.trim() ? 'Custom pasted cookies override saved file'
+    : (selected ? 'Using ' + selected : 'No saved cookie file selected');
+}
+
+function updateUrlClear() {
+  $('urlClearBtn').hidden = !$('url').value;
+}
+
+$('fetchBtn').addEventListener('click', () => {
+  const url = $('url').value.trim();
+  if (!url) { log('[ERROR] Enter a URL first.', 'err'); return; }
+  if (!connected()) { log('[ERROR] WebSocket is not connected.', 'err'); return; }  // before clearing anything
+  forgetOldResult();
+  picker.loadedFor = '';
+  picker.title = '';
+  hidePlaylist();
+  rememberMedia('', url);
+  if (!job.starting && !job.running) clearLog();  // keep a running download's output
+  $('optionsCard').style.display = 'none';
+  $('result').style.display = 'none';
+  picker.video = '';
+  picker.audio = '';
+  log('[SYSTEM] Fetching formats...');
+  setStatus('Fetching formats...');
+  picker.pendingUrl = url;
+  send({action: 'fetch_formats', url, ...cookiePayload()});
+});
+
+$('quickBtn').addEventListener('click', quickDownload);
+
+$('downloadBtn').addEventListener('click', () => {
+  startDownload({action: 'download_video', ...commonPayload(), video_format_id: '', include_audio: $('includeAudio').checked,
+                 audio_format_id: '', container: $('container').value}, '[SYSTEM] Starting best-quality download...');
+});
+
+$('downloadSelectedBtn').addEventListener('click', () => {
+  const payload = commonPayload();
+  const ids = formatsFor(payload.url);
+  startDownload({action: 'download_video', ...payload, video_format_id: ids.video, include_audio: $('includeAudio').checked,
+                 audio_format_id: ids.audio, container: $('container').value},
+                `[SYSTEM] Starting exact format ${ids.video || 'AUTO'}...`);
+});
+
+$('audioBtn').addEventListener('click', () => {
+  const payload = commonPayload();
+  const ids = formatsFor(payload.url);
+  startDownload({action: 'download_audio', ...payload, audio_source: ids.audio, audio_container: $('audioContainer').value},
+                `[SYSTEM] Starting exact audio format ${ids.audio || 'AUTO'}...`);
+});
+
+$('subtitleOnlyBtn').addEventListener('click', () => {
+  const payload = commonPayload();
+  if (!payload.subtitle_lang.length) { log('[ERROR] Select at least one subtitle language first.', 'err'); return; }
+  startDownload({action: 'download_subtitle', ...payload}, '[SYSTEM] Downloading subtitle only as SRT...', 'Downloading subtitle...');
+});
+
+$('playlistBtn').addEventListener('click', () => {
+  if (!playlist.url) return;
+  startDownload({action: 'download_playlist', ...commonPayload(), url: playlist.url, media_title: playlist.title,
+                 container: $('container').value},
+                '[SYSTEM] Starting full playlist download...', 'Downloading playlist...');
+});
+
+$('playlistAudioBtn').addEventListener('click', () => {
+  if (!playlist.url) return;
+  startDownload({action: 'download_playlist', ...commonPayload(), url: playlist.url, media_title: playlist.title,
+                 audio_only: true, audio_container: $('audioContainer').value},
+                '[SYSTEM] Starting playlist audio download...', 'Downloading playlist audio...');
+});
+
+$('cancelBtn').addEventListener('click', () => {
+  if (!job.id) { showCancel(false); return; }
+  if (!send({action: 'cancel', job_id: job.id})) return;
+  $('cancelBtn').disabled = true;
+  $('cancelBtn').textContent = 'CANCELLING...';
+  log('[SYSTEM] Cancelling download...');
+});
+
+$('selectAllSubsBtn').addEventListener('click', () => {
+  const inputs = subtitleInputs();
+  const bulk = inputs.filter(input => input.dataset.bulk);
+  bulk.forEach(input => { input.checked = true; });
+  updateSubtitleSelectionUI();
+  const skipped = inputs.length - bulk.length;
+  $('subtitleStatus').textContent = `${plural(bulk.length, 'subtitle language')} selected.`
+    + (skipped ? ` ${skipped} auto-translated or live chat track${skipped === 1 ? ' was' : 's were'} left out; tick them by hand if needed.` : '');
+});
+
+$('clearSubsBtn').addEventListener('click', () => {
+  subtitleInputs().forEach(input => { input.checked = false; });
+  updateSubtitleSelectionUI();
+  $('subtitleStatus').textContent = 'No subtitle languages selected.';
+});
+
+$('includeAudio').addEventListener('change', renderSelection);
+
+$('subtitleEnabled').addEventListener('change', () => {
+  const enabled = $('subtitleEnabled').checked;
+  const hasList = !!document.querySelector('#subtitleLang input');
+  $('subtitleOptions').style.display = enabled ? 'grid' : 'none';
+  $('subtitleMode').disabled = !enabled;
+  subtitleInputs().forEach(input => { input.disabled = !enabled; });
+  $('selectAllSubsBtn').disabled = !enabled || !hasList;
+  $('clearSubsBtn').disabled = !enabled || !hasList;
+  updateSubtitleOnlyButton();
+  const url = $('url').value.trim();
+  if (enabled && url && subs.loadedFor === url) {
+    // still loaded for this URL: keep the list and ticks, don't refetch
+    const count = subtitleInputs().length;
+    const picked = getSelectedSubtitleLanguages().length;
+    $('subtitleStatus').textContent = count
+      ? `${plural(count, 'language')} available, ${picked} selected.`
+      : 'No subtitles were reported by yt-dlp.';
+  } else if (enabled) {
+    fetchSubtitleData();
+  } else {
+    clearTimeout(subs.refetchTimer);
+    $('subtitleStatus').textContent = 'Subtitle download is off.';
+  }
+});
+
+// The x only empties the box; the page reacts once a new URL is typed.
+$('urlClearBtn').addEventListener('click', () => {
+  $('url').value = '';
+  updateUrlClear();
+  updateSubtitleOnlyButton();
+  $('url').focus();
+});
+
+$('url').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); $('fetchBtn').click(); }
+});
+
+$('url').addEventListener('input', () => {
+  updateUrlClear();
+  const url = $('url').value.trim();
+  // YouTube reuses format ids across videos, never send one with another URL
+  if (picker.loadedFor && url !== picker.loadedFor) {
+    picker.loadedFor = '';
+    picker.title = '';
+    picker.all = [];
+    picker.video = '';
+    picker.audio = '';
+    buildVideoFormats([]);
+    buildAudioFormats([]);
+    $('selectionStatus').textContent = 'The URL changed. Fetch formats again to pick exact formats; until then downloads use the best available.';
+  }
+  if (playlist.url && url !== playlist.url) hidePlaylist();
+  updateSubtitleOnlyButton();
+  clearTimeout(subs.refetchTimer);
+  if (url !== subs.loadedFor && $('subtitleEnabled').checked) {
+    $('subtitleStatus').textContent = 'The URL changed; subtitle languages will be fetched for it.';
+    if (/^https?:\/\/\S+$/i.test(url)) subs.refetchTimer = setTimeout(fetchSubtitleData, 800);
+  }
+});
+
+$('cookieFile').addEventListener('change', updateCookieStatus);
+$('customCookies').addEventListener('input', updateCookieStatus);
+
+// /?url=<link> fills the box, &go=1 also offers to start a best-quality download
+const params = new URLSearchParams(location.search);
+const sharedUrl = ((params.get('url') || params.get('text') || '').match(/https?:\/\/\S+/) || [''])[0];
+let autoStart = !!sharedUrl && params.get('go') === '1';
+if (sharedUrl) {
+  $('url').value = sharedUrl;
+  updateUrlClear();
+  history.replaceState(null, '', location.pathname);  // reload won't start it again
+}
+
+start();
+</script>
+</body>
+</html>
